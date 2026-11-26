@@ -1,0 +1,354 @@
+\documentclass{beamer}
+
+\usepackage[authoryear]{natbib}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{bm}
+\usepackage{caption}
+\usepackage{graphicx}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=blue,
+    citecolor=blue
+}
+
+% -------- Make AUTHOR NAME blue inside natbib citations --------
+\makeatletter
+
+% Patch citeauthor (for \citeauthor or author part of \citep/\cite)
+\renewcommand{\NAT@nmfmt}[1]{\textcolor{blue}{#1}}
+
+% Ensure parentheses, year, etc. stay default color
+\def\NAT@date#1{#1}
+
+%Commands :
+\usepackage{physics}
+\newcommand\tab[1][1cm]{\hspace*{#1}}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+\newcommand{\bracket}[1]{\left ( #1 \right )}
+\newcommand{\curly}[1]{\left \{ #1 \right \} }
+\newcommand{\squared}[1]{\left [ #1 \right ]}
+
+\def\d{\mathrm{d}}
+
+\makeatother
+% ----------------------------------------------------------------
+
+\title{A New Method of Online Bootstrap}
+\author{Wen, Zehai}
+\institute{McGill University}
+\date{2026 December 4}
+
+\setbeamertemplate{caption}[numbered]
+\setbeamertemplate{section in toc}{\inserttocsectionnumber.~\inserttocsection}
+\setbeamertemplate{subsection in toc}{\hspace{1.2em}\inserttocsubsectionnumber.~\inserttocsubsection}
+
+\setbeamertemplate{theorems}[numbered]
+
+\newtheorem{proposition}[theorem]{Proposition}
+
+\begin{document}
+
+\frame{\titlepage}
+
+\begin{frame}
+    \tableofcontents
+\end{frame}
+
+\section{Introduction}
+
+\begin{frame}
+    \tableofcontents[currentsection]
+\end{frame}
+
+\begin{frame}{Generalized Linear Models (GLMs)}
+    \begin{enumerate}
+    \item Were first introduced in \cite{Nelder_Wedderburn_1972}.
+    \item Are among the most popular classes of statistical models.
+    \item Includes lots of popular regression models: linear, logistic, gamma, and many other.
+    \end{enumerate}
+\end{frame}
+
+\begin{frame}{The Logistic Regression}
+    \begin{enumerate}
+    \item Regression for a binary response variable.
+    \item The most popular statistical way of analyzing binary data in a regression framework.
+    \item Widely applied (e.g., in medicine \citep{Ding_et_al_2025}, in finance \citep{Silva_et_al_2020}).
+    \item Popular for classification problems in machine learning community 
+    (e.g., text classification \citep{Genkin_et_al_2007}, image classification \citep{Song_2023}).
+    \end{enumerate}
+    
+\end{frame}
+
+\begin{frame}{Logistic Regression and Sigmoid Function}
+    \textbf{Logistic Regression}.
+
+    \begin{enumerate}
+    \item Data set $\{(\bm{x}_i, y_i)\}_{i=1}^n$, $\bm{x}_i \in \mathbb{R}^p$, $y_i \in \{0,1\}$.
+    \item $y_1, \ldots, y_n$ are modelled as realizations of independent random variables $Y_1, \ldots, Y_n$.
+    The distribution of each $Y_i$ is given as
+
+    \begin{equation*}
+        P \{Y_i = 1\} = 1- P \{Y_i = 0\} = \mu(\bm{x}_i^T \bm{\beta}),
+    \end{equation*}
+    where $\bm{\beta} \in \mathbb{R}^p$ is the vector of regression coefficients and 
+    $\mu: \mathbb{R} \to (0, 1)$ is the \textbf{Sigmoid function}:
+    
+    \begin{equation*}
+        \mu(x) = \frac{1}{1+e^{-x}}, \quad x \in \mathbb{R}.
+    \end{equation*}
+    \end{enumerate}
+    
+\end{frame}
+
+\begin{frame}{Properties of Sigmoid}
+    \begin{enumerate}
+  \item The function $\mu$ is odd around $\bracket{0, 1/2}$. 
+  That is, $\mu(x)=1-\mu(-x)$ for every $x \in \mathbb{R}$. In particular, $\mu(0)= 1/2$.
+  \item The function $\mu$ is smooth: $\mu \in C^{\infty}(\mathbb{R})$, 
+  the set of infinitely differentiable functions with a real domain.
+  \item The derivative $\mu'(x)=\mu(x)(1-\mu(x)) = \frac{e^x}{(1+e^x)^2}$ is a positive bounded even function.
+  In addition to being an appealing property, it implies that $\mu$ is strictly increasing.
+  \item The function $\mu$ has exponential tails:
+  
+  \begin{equation*}
+    \lim_{x \to -\infty}\frac{\mu(x)}{e^{-x}} = 1.
+  \end{equation*}
+  Consequently, $\mu(x) \to 0$ as $x \to -\infty$. 
+  By property 1, this also implies that
+  $\mu(x) \to 1$ as $x \to \infty$.
+\end{enumerate}
+    
+\end{frame}
+
+\section{Leukemia Data Set}
+
+\begin{frame}
+    \tableofcontents[currentsection]
+\end{frame}
+
+\begin{frame}{Leukemia Data Set}
+    \begin{enumerate}
+    \item Benchmark data set for robustness problems in logistic regression,
+    available in the \texttt{R} package \texttt{robustbase}.
+    \item $33$ leukemia patients in total. 
+    Response equals to $1$ if the patient survives for more than $52$ weeks,
+    and is $0$ otherwise.
+    \item Two explanatory variables: continuous covariate $\texttt{WBC}$ and binary covariate $\texttt{AG}$.
+    \end{enumerate}
+\end{frame}
+
+\begin{frame}{Estimation Results}
+
+\begin{table}[H]
+  \footnotesize
+  \centering
+  \caption{Estimation of $\bm{\beta}$ with the complete data set.}
+  \begin{tabular}{|c|c|c|c|}
+  \hline
+                             &  Logistic          &  Cantoni-Ronchetti method    & Proposed Model $(\nu, a)=(1, 1/2)$   \\ 
+  \hline
+
+  $\hat{\beta}_{0}$        &  $-2.234$     &   $-5.752$   & $-4.363$       \\
+  $\hat{\beta}_{\texttt{WBC}}$        &  $-1.096$     &    $-6.995$  & $-5.321$      \\
+  $\hat{\beta}_{\texttt{AG}}$        &  $2.261$       &   $2.490$  & $1.948$        \\
+  \hline
+  \end{tabular}
+  \label{tab:beta_estimation_complete}
+\end{table}
+
+\begin{table}[H]
+  \footnotesize
+  \centering
+  \caption{Estimation of $\bm{\beta}$ with the data set excluding the outlier.}
+  \begin{tabular}{|c|c|c|c|}
+  \hline
+                             &  Logistic          &  Cantoni-Ronchetti method    & Proposed Model $(\nu, a)=(1, 1/2)$   \\ 
+  \hline
+
+  $\hat{\beta}_{0}$        &  $-6.655$     &   $-5.761$   & $-6.368$       \\
+  $\hat{\beta}_{\texttt{WBC}}$        &  $-8.120$     &    $-7.008$  & $-8.115$      \\
+  $\hat{\beta}_{\texttt{AG}}$        &  $2.558$       &   $2.492$  & $2.559$        \\
+  \hline
+  \end{tabular}
+  \label{tab:beta_estimation_exclude}
+\end{table}
+
+\end{frame}
+
+\begin{frame}{Estimations results (cont'd)}
+
+    An approach to detect outliers is through the analysis of Pearson residuals:
+    analyze the Pearson residuals $r(y_i, \mu(\bm{x}_i^T \hat{\bm{\beta}}))$
+     or their generalizations.
+
+\begin{equation*}
+  r = \frac{y-\hat{y}}{
+    \sqrt{\hat{\text{Var}}(Y)}}.
+\end{equation*}
+
+\end{frame}
+
+\section{Our Contributions}
+
+\begin{frame}
+    \tableofcontents[currentsection]
+\end{frame}
+
+\begin{frame}{Non-robustness of Logistic Regression and Our Contributions}
+
+    \begin{enumerate}
+    \item Cause of non-robustness: exponential tails of the Sigmoid function.
+    \item Consequence: too small probabilities are assigned to outliers.
+    \item Proposal: slowly varying version of Sigmoid.
+    \item Main result: the outliers are automatically excluded when they are far enough from the bulk of the data.
+    \end{enumerate}
+    
+\end{frame}
+
+\section{Existing Methods}
+
+\begin{frame}
+    \tableofcontents[currentsection]
+\end{frame}
+
+\begin{frame}{Existing Methods and Roots of Our Appraoch}
+    \begin{enumerate}
+        \item The most popular approach is frequentist and is that of 
+        \cite{Cantoni_Ronchetti_2001} (M-estimation).
+        \item  \cite{Russo_Greco_2022} proposes a misclassification 
+        model. 
+        \item Roots of our method: robust heavy-tailed modeling in Bayesian statistics 
+\citep{Desgagne_2015, Gagnon_et_al_2020}.
+    \end{enumerate}
+
+\end{frame}
+
+\section{Our Proposed Model}
+
+\begin{frame}
+    \tableofcontents[currentsection]
+\end{frame}
+
+\begin{frame}{The Slowly Varying Sigmoid}
+
+    \begin{enumerate}
+        \item Objective: construct a function with 
+        the same appealing properties of Sigmoid, except the exponential tails.
+        \item Our proposal: a slowly varying version $\mu_{a, \nu}: \mathbb{R} \to (0, 1)$, 
+which is a robust version of the Sigmoid function $\mu$,
+defined by the sum of two terms
+
+\begin{equation*}
+    \mu_{a, \nu}(x) = \mu_{a, \nu}^{(1)}(x) + \mu_{a, \nu}^{(2)}(x), \quad x \in \mathbb{R}.
+\end{equation*}
+Here $a > 0$ and $\nu > 0$ are hyperparameters.
+
+    \end{enumerate}
+
+
+\end{frame}
+
+\begin{frame}{The Slowly Varying Sigmoid (cont'd)}
+We have that
+
+\begin{equation*}
+  \mu_{a, \nu}^{(1)}(x) = \frac{1}{1+ \exp 
+  \curly{ - \frac{x}{\bracket{\frac{x^{2a}}{ \nu} + 1}^{\frac{1}{2a}} }}}, \quad x \in \mathbb{R},
+\end{equation*}
+
+\begin{equation*}
+  \mu_{a, \nu}^{(2)}(x) = \frac{1}{1+\exp \curly{\nu^{\frac{1}{2a}}}} L(x), \quad x \in \mathbb{R},
+\end{equation*}
+with
+
+\begin{equation*}
+  L(x) = C \int_0^x \frac{\d t}{\sqrt{t^2+2} \log^2( t^2+2)}, \quad x \in \mathbb{R}.
+\end{equation*}
+
+\end{frame}
+
+\begin{frame}{Theoretical Properties}
+\begin{proposition}
+    \begin{enumerate}
+        \item $\mu_{a,\nu}(x) = 1 - \mu_{a, \nu}(-x)$ for every $x \in \mathbb{R}$, every $\nu > 0$, and every $a > 0$.
+  In particular, $\mu_{a,\nu}(0) = \frac{1}{2}$.
+        \item For every $a > 0$ and every $\nu > 0$, the function $\mu_{a, \nu}$ is strictly increasing.
+        It is $C^{\infty}$ in $\mathbb{R} - \{0\}$
+        and is $C^1$ in $\mathbb{R}$.
+        \item For every $a > 0$, the sequence of functions $\mu_{a, \nu}$ converges pointwise to the Sigmoid function 
+        $\mu$ as $\nu \to \infty$.
+        \item For every $a > 0$ and every $\nu > 0$, we have the limit
+  
+  \begin{equation*}
+    \lim_{x \to -\infty} \frac{\mu_{a, \nu}(x)}{\frac{1}{\log \abs{x}}} = 
+    \frac{C}{4 \bracket{1 + \exp \curly{\nu^{\frac{1}{2a}}}}}.
+  \end{equation*}
+        \item For every $a > 0$, every $\nu > 0$, and every $b > 0$, we have 
+        \begin{equation*}
+            \lim_{x \to - \infty} \frac{\mu_{a,\nu}(bx)}{\mu_{a,\nu}(x)} = 1.
+        \end{equation*}
+    \end{enumerate}
+\end{proposition}
+
+\end{frame}
+
+\begin{frame}{Main Result}
+
+    \newtheorem{informal_theorem}{Informal Theorem}
+
+\begin{informal_theorem}
+        As outliers move away from the bulk of the data,
+    \begin{enumerate}
+        \item The likelihood function based on the 
+        complete the data set is asymptotically equivalent to 
+        that based on the non-outliers only 
+        (up to a constant independent of $\bm{\beta}$);
+        \item In a Bayesian setting, the posterior distribution will 
+        behave asymptotically like one where the outlying points are excluded.
+        
+    \end{enumerate}
+\end{informal_theorem}
+
+\end{frame}
+
+\section{Numerical Simulations}
+
+\begin{frame}
+    \tableofcontents[currentsection]
+\end{frame}
+
+\begin{frame}{Illustration}
+
+    \begin{enumerate}
+        \item Generate $\{(\bm{x}_i, y_i)\}_{i=1}^n$
+        with $\bm{x}_i = [1, x_{i2}]^T \in \mathbb{R}^2$ and $y_i \in \{0, 1\}$.
+        The numbers $\bm{x}_{12}, \ldots, \bm{x}_{n2}$ are realizations 
+        of independent $N(0, 1)$'s.
+        The $y_i$'s are realizations of independent Bernoulli random variables $Y_i$
+        with $P\{Y_i = 1\} = \mu(\bm{x}_i^T\bm{\beta} )$
+        for a fixed $\bm{\beta} = [\bm{\beta}_0, \bm{\beta}_1]^T \in \mathbb{R}^2$.
+        \item Modify an observation $(\bm{x}_s, y_s)$
+        by setting $y_s = 1$ and $x_{s2} = - \omega$.
+        \item We use $n = 50$, $\bm{\beta} = [2, 3]^T$, $\omega = 1, \ldots, 20$.
+    \end{enumerate}
+
+\end{frame}
+
+\begin{frame}{Thanks for Listening}
+
+Thanks for your attention.
+I am happy to answer questions.
+
+\end{frame}
+
+\begin{frame}[allowframebreaks]{References}
+\bibliographystyle{apalike}
+\bibliography{reference}
+\end{frame}
+
+\end{document}
